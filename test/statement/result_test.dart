@@ -5,16 +5,16 @@ import 'package:typed_sql/typed_sql.dart';
 void main() {
   group('SELECT', () {
     test('SELECT 1', () {
-      final q = SelectQuery([Expr.raw(1)]).render(PostgresDialect());
+      final q = Select(RawExpr('1')).toSql(PostgresDialect());
       expect(q.text, 'SELECT 1');
       expect(q.params, isEmpty);
     });
 
     test('SELECT * FROM tbl', () {
-      final q = SelectQuery(
-        [Expr.raw('*')],
-        from: [Expr.ref('tbl')],
-      ).render(PostgresDialect());
+      final q = Select(
+        '*',
+        from: 'tbl',
+      ).toSql(PostgresDialect());
       expect(q.text, 'SELECT * FROM "tbl"');
       expect(q.params, isEmpty);
     });
@@ -22,14 +22,14 @@ void main() {
     test(
         'SELECT lower(a.name) FROM tbl as a WHERE a.status = 1 AND a.name = "Joe"',
         () {
-      final q = SelectQuery(
+      final q = Select(
         [Expr.ref('a', 'name').customFn('lower')],
-        from: [Expr.ref<Relation>('tbl').as('a')],
-        where: Expr.every([
+        from: 'tbl AS a',
+        where: AndExpr([
           Expr.ref('a', 'status').eq(1),
           Expr.ref('a', 'name').eq('Joe'),
         ]),
-      ).render(PostgresDialect());
+      ).toSql(PostgresDialect());
       expect(q.text,
           'SELECT lower("a"."name") FROM "tbl" AS "a" WHERE ("a"."status"=@a_status) AND ("a"."name"=@a_name)');
       expect(q.params, {
@@ -38,13 +38,14 @@ void main() {
       });
     });
 
-    test('SELECT * FROM tbl ORDER BY updated DESC', () {
-      final q = SelectQuery(
-        [Expr.raw('*')],
-        from: [Expr.ref('tbl')],
-        orderBy: [OrderedField(Expr.ref('updated'), order: Order.desc)],
-      ).render(PostgresDialect());
-      expect(q.text, 'SELECT * FROM "tbl" ORDER BY "updated" DESC');
+    test('SELECT id FROM tbl ORDER BY updated DESC', () {
+      final q = Select(
+        'tbl.entity_id as id',
+        from: 'tbl',
+        orderBy: [Expr.ref('updated').desc()],
+      ).toSql(PostgresDialect());
+      expect(q.text,
+          'SELECT "tbl"."entity_id" AS "id" FROM "tbl" ORDER BY "updated" DESC');
       expect(q.params, isEmpty);
     });
   });

@@ -1,36 +1,76 @@
-class ParameterizedQuery<T> {
+import 'dart:async';
+
+abstract class SqlPart {
+  const SqlPart();
+
+  void writeSqlPart(SqlWriter writer);
+
+  SqlWithParams<T> toSql<T>([Dialect<T>? dialect]) {
+    dialect ??= Dialect.getZoneDialect() ?? Dialect.getGlobalDialect();
+    if (dialect == null) {
+      throw ArgumentError('No Dialect provided.');
+    }
+    final writer = dialect.newSqlWriter();
+    writeSqlPart(writer);
+    return writer.complete();
+  }
+}
+
+class SqlWithParams<T> {
   final String text;
   final T params;
 
-  ParameterizedQuery(this.text, this.params);
+  SqlWithParams(this.text, this.params);
 }
+
+const _dialectZoneKey = 'package:typed_sql/Dialect';
 
 abstract class Dialect<T> {
   const Dialect();
 
-  ParameterizedQueryBuilder<T> newQueryBuilder();
+  static Dialect? _global;
+  static Dialect<T>? getGlobalDialect<T>() => _global as Dialect<T>?;
+  static void setGlobalDialect(Dialect? dialect) {
+    _global = dialect;
+  }
 
-  String namedParameter(String key) => throw UnimplementedError();
+  static R zoneWith<T, R>(Dialect<T> dialect, R Function() action) {
+    return Zone.current.fork(zoneValues: {
+      _dialectZoneKey: dialect,
+    }).run(action);
+  }
+
+  static Dialect<T>? getZoneDialect<T>() {
+    return Zone.current[_dialectZoneKey] as Dialect<T>?;
+  }
+
+  SqlWriter<T> newSqlWriter();
+
+  String escapeParam(String key) => throw UnimplementedError();
 }
 
-class PostgresDialect extends Dialect<Map<String, dynamic>> {
+class NamedDialect extends Dialect<Map<String, dynamic>> {
+  const NamedDialect();
+
+  @override
+  SqlWriter<Map<String, dynamic>> newSqlWriter() => NamedSqlWriter(this);
+}
+
+class PostgresDialect extends NamedDialect {
   const PostgresDialect();
 
   @override
-  ParameterizedQueryBuilder<Map<String, dynamic>> newQueryBuilder() =>
-      NamedParameterizedQueryBuilder(this);
-
-  @override
-  String namedParameter(String key) => '@$key';
+  String escapeParam(String key) => '@$key';
 }
 
-abstract class ParameterizedQueryBuilder<T> {
+abstract class SqlWriter<T> {
+  final Dialect dialect;
   final _sb = StringBuffer();
   final T _params;
 
-  ParameterizedQueryBuilder._(this._params);
+  SqlWriter._(this.dialect, this._params);
 
-  bool get isEmpty => _sb.isEmpty;
+  bool get isNotEmpty => _sb.isNotEmpty;
 
   void write(String value) {
     _sb.write(value);
@@ -63,17 +103,15 @@ abstract class ParameterizedQueryBuilder<T> {
     }
   }
 
-  ParameterizedQuery<T> build() {
-    return ParameterizedQuery(_sb.toString(), _params);
+  SqlWithParams<T> complete() {
+    return SqlWithParams(_sb.toString(), _params);
   }
 }
 
-class NamedParameterizedQueryBuilder
-    extends ParameterizedQueryBuilder<Map<String, dynamic>> {
-  final Dialect _dialect;
+class NamedSqlWriter extends SqlWriter<Map<String, dynamic>> {
   final _counters = <String, int>{};
 
-  NamedParameterizedQueryBuilder(this._dialect) : super._(<String, dynamic>{});
+  NamedSqlWriter(Dialect dialect) : super._(dialect, <String, dynamic>{});
 
   @override
   void writeParam(dynamic value, {String? key}) {
@@ -84,6 +122,6 @@ class NamedParameterizedQueryBuilder
       finalKey = '${prefix}_$count';
     }
     _params[finalKey] = value;
-    write(_dialect.namedParameter(finalKey));
+    write(dialect.escapeParam(finalKey));
   }
 }

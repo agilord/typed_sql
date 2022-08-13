@@ -1,5 +1,5 @@
-import 'expr.dart';
-import 'query.dart';
+import 'expr/expr.dart';
+import 'statement/statement.dart';
 
 class Schema {
   final List<Table> tables;

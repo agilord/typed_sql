@@ -1,3 +1,3 @@
 export 'src/dialect.dart';
-export 'src/expr.dart';
-export 'src/query.dart';
+export 'src/expr/expr.dart';
+export 'src/statement/statement.dart';
