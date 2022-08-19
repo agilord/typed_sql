@@ -34,18 +34,31 @@ class ComparisonExpr<T> extends Expr<bool> {
 }
 
 extension ComparisonExprExt<R> on Expr<R> {
-  ComparisonExpr eq(v) => ComparisonExpr(this, '=', _toExpr(v));
-  ComparisonExpr neq(v) => ComparisonExpr(this, '<>', _toExpr(v));
-  ComparisonExpr lt(v) => ComparisonExpr(this, '<', _toExpr(v));
-  ComparisonExpr lteq(R v) => ComparisonExpr(this, '<=', _toExpr(v));
-  ComparisonExpr gt(R v) => ComparisonExpr(this, '>', _toExpr(v));
-  ComparisonExpr gteq(R v) => ComparisonExpr(this, '>=', _toExpr(v));
+  ComparisonExpr<R> eq(/** R | Expr<R> */ v) =>
+      ComparisonExpr<R>(this, '=', _toExpr(v));
+  ComparisonExpr<R> neq(/** R | Expr<R> */ v) =>
+      ComparisonExpr<R>(this, '<>', _toExpr(v));
+  ComparisonExpr<R> lt(/** R | Expr<R> */ v) =>
+      ComparisonExpr<R>(this, '<', _toExpr(v));
+  ComparisonExpr<R> lteq(/** R | Expr<R> */ v) =>
+      ComparisonExpr<R>(this, '<=', _toExpr(v));
+  ComparisonExpr<R> gt(/** R | Expr<R> */ v) =>
+      ComparisonExpr<R>(this, '>', _toExpr(v));
+  ComparisonExpr<R> gteq(/** R | Expr<R> */ v) =>
+      ComparisonExpr<R>(this, '>=', _toExpr(v));
 
-  Expr<S> _toExpr<S>(S? v) {
-    if (this is RefExpr) {
-      final t = this as RefExpr;
-      return LiteralExpr<S>(v, key: t.parts.whereType<String>().join('_'));
+  Expr<R> _toExpr(dynamic v) {
+    if (v is Expr<R>) {
+      return v;
     }
-    return LiteralExpr<S>(v);
+    if (v is R?) {
+      if (this is RefExpr) {
+        final t = this as RefExpr;
+        return LiteralExpr<R>(v, key: t.parts.whereType<String>().join('_'));
+      } else {
+        return LiteralExpr<R>(v);
+      }
+    }
+    throw ArgumentError('Unknown type `${v.runtimeType}` of `$v`.');
   }
 }
