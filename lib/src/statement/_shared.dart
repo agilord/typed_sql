@@ -79,7 +79,18 @@ OrderBy? _tryParseOrderBy(Object? v) {
   return list.map((e) {
     if (e is OrderedField) return e;
     if (e is RefExpr) return OrderedField(e);
-    if (e is String) return OrderedField(_parseRefExprWithAlias(e));
+    if (e is String) {
+      var v = e.trim();
+      Order? order;
+      if (v.toLowerCase().endsWith(' desc')) {
+        order = Order.desc;
+        v = v.substring(0, v.length - 5).trim();
+      } else if (v.toLowerCase().endsWith(' asc')) {
+        order = Order.desc;
+        v = v.substring(0, v.length - 4).trim();
+      }
+      return OrderedField(_parseRefExprWithAlias(e), order);
+    }
     throw ArgumentError('Unable to parse reference: $e as OrderBy part.');
   }).toList();
 }

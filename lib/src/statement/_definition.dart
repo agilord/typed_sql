@@ -33,6 +33,49 @@ class CreateTable extends DefinitionStatement {
   }
 }
 
+class CreateIndex extends DefinitionStatement {
+  final bool? concurrently;
+  final bool? ifNotExists;
+  final String? name;
+  final String table;
+  final String? using;
+  final List<OrderedField> columns;
+
+  CreateIndex({
+    this.concurrently,
+    this.ifNotExists,
+    this.name,
+    required this.table,
+    this.using,
+    required Object columns,
+  }) : columns = _tryParseOrderBy(columns)!;
+
+  @override
+  void writeSqlPart(SqlWriter writer) {
+    writer.write('CREATE INDEX');
+    if (concurrently ?? false) {
+      writer.write(' CONCURRENTLY');
+    }
+    if (ifNotExists ?? false) {
+      writer.write(' IF NOT EXISTS');
+    }
+    if (name != null && name!.isNotEmpty) {
+      writer.write(' "$name"');
+    }
+    writer.write(' ON "$table"');
+    if (using != null && using!.isNotEmpty) {
+      writer.write(' USING $using');
+    }
+    writer.write(' (');
+    writer.writePartsJoined<SqlPart>(
+      columns,
+      join: ', ',
+      fn: (c) => c.writeSqlPart(writer),
+    );
+    writer.write(')');
+  }
+}
+
 class ColumnDef extends SqlPart {
   final String name;
   final DataType type;
